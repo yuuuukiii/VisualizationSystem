@@ -1,0 +1,122 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no, width=device-width">
+    <title>StopFlow</title>
+    <link rel="stylesheet" href="http://cache.amap.com/lbs/static/main1119.css"/>
+    <script type="text/javascript" src="http://webapi.amap.com/maps?v=1.4.5&key=5b87244e26314b0536124a92dddbc3fd&plugin=AMap.StationSearch"></script>
+
+</head>
+<body>
+<div id="container"></div>
+<div id="tip"></div>
+<script src="/js/d3.min.js"></script>
+
+<script type="text/javascript">
+    var map = new AMap.Map("container", {
+        resizeEnable: true,
+        center: [113.520450, 22.264856],//地图中心点
+        zoom: 13 //地图显示的缩放级别
+    });
+
+    d3.csv("/data/testFlow.csv", function(d) {
+        d.cnt = +d.cnt;
+        d.lon = +d.lon;
+        d.lat = +d.lat;
+        return d;
+    }, function(error, data) {
+            if (error) {
+                throw error;
+            }
+
+            var cnt_array = [];
+            data.map(function (d) { cnt_array.push(d.cnt) });
+            var max_cnt = Math.max.apply(null, cnt_array);
+            var min_cnt = Math.min.apply(null, cnt_array);
+            var max_range = 20, min_range = 10;
+            console.log("length: "+data.length);
+            console.log("cnt array: " + cnt_array+"\nmin: "+min_cnt+"\nmax: "+max_cnt);
+
+            for(var i = 0; i<data.length;i++)
+            {
+
+                var name = data[i].Stop;
+                //linearScale
+                // r = ((r-minR)/(maxR-minR))*(maxRange-minRange)+minRange;
+                var r = (max_cnt==min_cnt)?10:(data[i].cnt - min_cnt)/(max_cnt-min_cnt)*(max_range-min_range)+min_range;
+                var lon = data[i].lon;
+                var lat = data[i].lat;
+                stationSearch(name, r, lon, lat);
+                //when search by name, there are many results
+                //after searching by name, select by log and lat(the nearest stop)
+            }
+    });
+
+
+    /*公交站点查询*/
+    function stationSearch(stationName, r, lon, lat) {
+        //实例化公交站点查询类
+        var station = new AMap.StationSearch({
+            pageIndex: 1, //页码
+            pageSize: 60, //单页显示结果条数
+            city: '珠海'   //确定搜索城市
+        });
+        station.search(stationName, function(status, result) {
+            if (status === 'complete' && result.info === 'OK') {
+                stationSearch_CallBack(result, r, lon, lat);
+            } else {
+                alert(result);
+            }
+        });
+    }
+    /*公交站点查询返回数据解析*/
+    function stationSearch_CallBack(searchResult, r, lon, lat) {
+        var stationArr = searchResult.stationInfo;
+        var searchNum = stationArr.length;
+        if (searchNum > 0) {
+            console.log('查询结果：共' + searchNum + '个站点');
+
+            //init
+            var cur_lat = stationArr[0].latitude;
+            var cur_lon = stationArr[0].longitude;
+            var min = (cur_lat-lat)^2 + (cur_lon-lon)^2;
+            var min_index = 0;
+
+            for (var i = 1; i < searchNum; i++) {
+                //find min and paint
+                cur_lat = stationArr[i].latitude;
+                cur_lon = stationArr[i].longitude;
+                var t = (cur_lat-lat)^2 + (cur_lon-lon)^2;
+                if(t < min){
+                    min = t;
+                    min_index = i;
+                }
+            }
+
+            paint(stationArr[min_index].location, r);
+            map.setFitView();
+        }
+    }
+
+    function  paint(center, r) {
+        var circleMarker = new AMap.CircleMarker({
+            center:center,
+            radius:r,
+            strokeColor:'white',
+            strokeWeight:2,
+            strokeOpacity:0.5,
+            fillColor:'rgba(0,0,255,1)',
+            fillOpacity:0.5,
+            zIndex:10,
+            bubble:true,
+            cursor:'pointer',
+            clickable: true
+        });
+        circleMarker.setMap(map);
+    }
+
+</script>
+</body>
+</html>

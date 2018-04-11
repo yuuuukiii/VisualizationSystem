@@ -13,4 +13,20 @@ public class VSController {
     public String index(){
         return "main";
     }
+    @RequestMapping("/test")
+    public String test(){
+        return "test";
+    }
+    @RequestMapping("/bar")
+    public String bar(){
+        return "bar";
+    }
+    @RequestMapping("/route")
+    public String route(){
+        return "route";
+    }
+    @RequestMapping("/flow")
+    public String flow(){
+        return "StopFlow";
+    }
 }
